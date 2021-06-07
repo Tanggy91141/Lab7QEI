@@ -50,6 +50,10 @@ UART_HandleTypeDef huart2;
 uint64_t _micros = 0;
 float EncoderVel = 0;
 uint64_t Timestamp_Encoder = 0;
+
+int setPoint = 15; //RPM = (ppr*60)/(3071*20)
+float voltageControl,summationError,previousError = 0; // u,s,p
+float P=1,I=0,D=0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -123,12 +127,22 @@ int main(void)
 //		}
 
 
-
 		//Add LPF?
 		if (micros() - Timestamp_Encoder >= 100)
 		{
 			Timestamp_Encoder = micros();
-			EncoderVel = (EncoderVel * 99 + EncoderVelocity_Update()) / 100.0;
+			EncoderVel = (EncoderVel * 99 + EncoderVelocity_Update()) / 100.0; //pulse per second
+			// RPM = pps*60/3071
+
+			if (setPoint >= 0)
+			{
+				__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, PWMOut); // PWM in ? f
+			}
+			else
+			{
+				__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, PWMOut);
+			}
+
 		}
 
 	}
@@ -431,13 +445,31 @@ float EncoderVelocity_Update()
 	}
 
 	//Update Position and time
-	EncoderLastPosition = EncoderNowPosition;
-	EncoderLastTimestamp = EncoderNowTimestamp;
+	EncoderLastPosition = EncoderNowPosition; // pulse
+	EncoderLastTimestamp = EncoderNowTimestamp; // microsecond
 
 	//Calculate velocity
 	//EncoderTimeDiff is in uS
-	return (EncoderPositionDiff * 1000000) / (float) EncoderTimeDiff;
+	return (EncoderPositionDiff * 1000000) / (float) EncoderTimeDiff; // pulse per second
 
+}
+
+//Coltrol Voltage with PID type Positional Algorithm
+void control_interrupt()
+{
+	//static sensor.read();
+	static float error = 0;
+	error = referentVoltage - EncoderVel;
+	summationError = summationError + error;
+	voltageControl = (P*error)+(I*summationError)+(D*(error-previousError));
+	//motor.drive(voltageControl)
+	//calculate output compare for change PWMOut
+
+	//Counter Period = 10000
+	//PWMOut = (voltageControl/referentVoltage)*10000;
+	PWMOut = PWMOut + voltageControl;
+
+	previousError = error;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
