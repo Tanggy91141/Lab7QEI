@@ -51,6 +51,8 @@ uint64_t _micros = 0;
 float EncoderVel = 0;
 uint64_t Timestamp_Encoder = 0;
 
+uint16_t PWMOut = 3000;
+
 int setPoint_in_RPM = 15; //RPM = (ppr*60)/(3071*20)
 float setPoint_in_pps = 0;
 float voltageControl,summationError,previousError = 0; // u,s,p
@@ -138,15 +140,15 @@ int main(void)
 			EncoderVel = (EncoderVel * 99 + EncoderVelocity_Update()) / 100.0; //pulse per second
 			// RPM = pps*60/3071
 
-			if (setPoint_in_RPM >= 0)
+			if (setPoint_in_RPM == 0.0)
 			{
-				__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, PWMOut); // PWM in ? f
-				__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0);
+				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, PWMOut); // PWM in ? f
+				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
 			}
 			else
 			{
-				__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, PWMOut);
-				__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
+				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, PWMOut);
+				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
 			}
 
 		}
