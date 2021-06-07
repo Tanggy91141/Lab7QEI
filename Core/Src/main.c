@@ -47,16 +47,20 @@ TIM_HandleTypeDef htim3;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+
 uint64_t _micros = 0;
 float EncoderVel = 0;
 uint64_t Timestamp_Encoder = 0;
 
 uint16_t PWMOut = 3000;
 
-int setPoint_in_RPM = 15; //RPM = (ppr*60)/(3071*20)
+int setPoint_in_RPM = -15; //RPM = (ppr*60)/(3071*20)
 float setPoint_in_pps = 0;
 float voltageControl,summationError,previousError = 0; // u,s,p
 float P=1,I=0,D=0;
+
+uint8_t check = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -110,8 +114,17 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
+  	// start micros
 	HAL_TIM_Base_Start_IT(&htim2);
+
+	// start encoder
 	HAL_TIM_Encoder_Start(&htim1, TIM_CHANNEL_ALL);
+
+	// start pwm
+	HAL_TIM_Base_Start(&htim3);
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -130,8 +143,9 @@ int main(void)
 //		{
 //			Timestamp_Encoder = micros();
 //			EncoderVel = EncoderVelocity_Update();
+//			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, PWMOut);
+//			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
 //		}
-
 
 		//Add LPF?
 		if (micros() - Timestamp_Encoder >= 100)
@@ -140,15 +154,21 @@ int main(void)
 			EncoderVel = (EncoderVel * 99 + EncoderVelocity_Update()) / 100.0; //pulse per second
 			// RPM = pps*60/3071
 
-			if (setPoint_in_RPM == 0.0)
+//			control_interrupt();
+
+			//check direction of motor
+			if (setPoint_in_RPM >= 0.0)
 			{
+				check = 0;
 				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, PWMOut); // PWM in ? f
 				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
 			}
 			else
 			{
-				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, PWMOut);
+				check = 1;
 				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, PWMOut);
+
 			}
 
 		}
@@ -345,6 +365,10 @@ static void MX_TIM3_Init(void)
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
   }
