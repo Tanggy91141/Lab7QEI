@@ -51,7 +51,8 @@ uint64_t _micros = 0;
 float EncoderVel = 0;
 uint64_t Timestamp_Encoder = 0;
 
-int setPoint = 15; //RPM = (ppr*60)/(3071*20)
+int setPoint_in_RPM = 15; //RPM = (ppr*60)/(3071*20)
+float setPoint_in_pps = 0;
 float voltageControl,summationError,previousError = 0; // u,s,p
 float P=1,I=0,D=0;
 /* USER CODE END PV */
@@ -119,6 +120,9 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
+		// setPoint in RPM to pps
+		setPoint_in_pps = abs(setPoint_in_RPM*51.1833); // *3071/60
+
 		//RAW Read
 //		if (micros() - Timestamp_Encoder >= 1000)
 //		{
@@ -134,13 +138,15 @@ int main(void)
 			EncoderVel = (EncoderVel * 99 + EncoderVelocity_Update()) / 100.0; //pulse per second
 			// RPM = pps*60/3071
 
-			if (setPoint >= 0)
+			if (setPoint_in_RPM >= 0)
 			{
 				__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, PWMOut); // PWM in ? f
+				__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, 0);
 			}
 			else
 			{
 				__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, PWMOut);
+				__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 0);
 			}
 
 		}
@@ -459,7 +465,7 @@ void control_interrupt()
 {
 	//static sensor.read();
 	static float error = 0;
-	error = referentVoltage - EncoderVel;
+	error = setPoint_in_pps - EncoderVel; 		// pulse per second
 	summationError = summationError + error;
 	voltageControl = (P*error)+(I*summationError)+(D*(error-previousError));
 	//motor.drive(voltageControl)
