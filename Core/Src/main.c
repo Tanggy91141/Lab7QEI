@@ -50,6 +50,7 @@ UART_HandleTypeDef huart2;
 
 uint64_t _micros = 0;
 float EncoderVel = 0;
+float EncoderVel_in_RPM = 0;
 uint64_t Timestamp_Encoder = 0;
 
 uint16_t PWMOut = 3000;
@@ -57,9 +58,8 @@ uint16_t PWMOut = 3000;
 int setPoint_in_RPM = -15; //RPM = (ppr*60)/(3071*20)
 float setPoint_in_pps = 0;
 float voltageControl,summationError,previousError = 0; // u,s,p
+float error = 0;
 float P=1,I=0,D=0;
-
-uint8_t check = 0;
 
 /* USER CODE END PV */
 
@@ -152,20 +152,20 @@ int main(void)
 		{
 			Timestamp_Encoder = micros();
 			EncoderVel = (EncoderVel * 99 + EncoderVelocity_Update()) / 100.0; //pulse per second
-			// RPM = pps*60/3071
+			// RPM = pps*60/3071 and 60/3071 = 0.0195
 
-//			control_interrupt();
+			EncoderVel_in_RPM = EncoderVel*0.0195;
+
+			control_interrupt();
 
 			//check direction of motor
 			if (setPoint_in_RPM >= 0.0)
 			{
-				check = 0;
 				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, PWMOut); // PWM in ? f
 				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
 			}
 			else
 			{
-				check = 1;
 				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
 				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, PWMOut);
 
@@ -490,8 +490,8 @@ float EncoderVelocity_Update()
 void control_interrupt()
 {
 	//static sensor.read();
-	static float error = 0;
-	error = setPoint_in_pps - EncoderVel; 		// pulse per second
+//	static float error = 0;
+	error = setPoint_in_pps - abs(EncoderVel); 		// pulse per second
 	summationError = summationError + error;
 	voltageControl = (P*error)+(I*summationError)+(D*(error-previousError));
 	//motor.drive(voltageControl)
