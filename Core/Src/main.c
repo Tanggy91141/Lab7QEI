@@ -47,19 +47,11 @@ TIM_HandleTypeDef htim3;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-
 uint64_t _micros = 0;
 float EncoderVel = 0;
-float EncoderVel_in_RPM = 0;
 uint64_t Timestamp_Encoder = 0;
 
 uint16_t PWMOut = 3000;
-
-int setPoint_in_RPM = -15; //RPM = (ppr*60)/(3071*20)
-float setPoint_in_pps = 0;
-float voltageControl,summationError,previousError = 0; // u,s,p
-float error = 0;
-float P=1,I=0,D=0;
 
 /* USER CODE END PV */
 
@@ -114,7 +106,7 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  	// start micros
+	// start micros
 	HAL_TIM_Base_Start_IT(&htim2);
 
 	// start encoder
@@ -135,41 +127,24 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-		// setPoint in RPM to pps
-		setPoint_in_pps = abs(setPoint_in_RPM*51.1833); // *3071/60
-
 		//RAW Read
 //		if (micros() - Timestamp_Encoder >= 1000)
 //		{
 //			Timestamp_Encoder = micros();
 //			EncoderVel = EncoderVelocity_Update();
-//			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, PWMOut);
-//			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
 //		}
+
+
 
 		//Add LPF?
 		if (micros() - Timestamp_Encoder >= 100)
 		{
 			Timestamp_Encoder = micros();
-			EncoderVel = (EncoderVel * 99 + EncoderVelocity_Update()) / 100.0; //pulse per second
-			// RPM = pps*60/3071 and 60/3071 = 0.0195
+			EncoderVel = (EncoderVel * 99 + EncoderVelocity_Update()) / 100.0;
 
-			EncoderVel_in_RPM = EncoderVel*0.0195;
-
-			control_interrupt();
-
-			//check direction of motor
-			if (setPoint_in_RPM >= 0.0)
-			{
-				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, PWMOut); // PWM in ? f
-				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
-			}
-			else
-			{
-				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, PWMOut);
-
-			}
+			PWMOut = 0;
+			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, PWMOut); // PWM in ? f
+			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
 
 		}
 
@@ -447,8 +422,8 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 #define  HTIM_ENCODER htim1
-#define  MAX_SUBPOSITION_OVERFLOW 1536	// (3071*20)/2
-#define  MAX_ENCODER_PERIOD 61420 		//  3071*20
+#define  MAX_SUBPOSITION_OVERFLOW 1536
+#define  MAX_ENCODER_PERIOD 3072
 
 float EncoderVelocity_Update()
 {
@@ -477,31 +452,13 @@ float EncoderVelocity_Update()
 	}
 
 	//Update Position and time
-	EncoderLastPosition = EncoderNowPosition; // pulse
-	EncoderLastTimestamp = EncoderNowTimestamp; // microsecond
+	EncoderLastPosition = EncoderNowPosition;
+	EncoderLastTimestamp = EncoderNowTimestamp;
 
 	//Calculate velocity
 	//EncoderTimeDiff is in uS
-	return (EncoderPositionDiff * 1000000) / (float) EncoderTimeDiff; // pulse per second
+	return (EncoderPositionDiff * 1000000) / (float) EncoderTimeDiff;
 
-}
-
-//Coltrol Voltage with PID type Positional Algorithm
-void control_interrupt()
-{
-	//static sensor.read();
-//	static float error = 0;
-	error = setPoint_in_pps - abs(EncoderVel); 		// pulse per second
-	summationError = summationError + error;
-	voltageControl = (P*error)+(I*summationError)+(D*(error-previousError));
-	//motor.drive(voltageControl)
-	//calculate output compare for change PWMOut
-
-	//Counter Period = 10000
-	//PWMOut = (voltageControl/referentVoltage)*10000;
-	PWMOut = PWMOut + voltageControl;
-
-	previousError = error;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
