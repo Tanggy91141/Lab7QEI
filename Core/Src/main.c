@@ -67,7 +67,7 @@ int check = 0;
 int sp = 0;
 float nv = 0;
 
-int count = 0;
+//int count = 0;
 
 /* USER CODE END PV */
 
@@ -83,6 +83,7 @@ static void MX_TIM3_Init(void);
 uint64_t micros();
 float EncoderVelocity_Update();
 void PIDcontrol();
+
 
 /* USER CODE END PFP */
 
@@ -163,16 +164,15 @@ int main(void)
 			PIDcontrol();
 
 			if (setPoint > 0)
-//			if (count == 0)
 			{
-				check = 0;
+//				check = 0;
 //				PWMOut += PIDcontrol(setPoint,EncoderVel);
 				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, PWMOut);
 				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
 			}
 			else
 			{
-				check = 1;
+//				check = 1;
 //				PWMOut += PIDcontrol(setPoint*(-1),EncoderVel*(-1));
 				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
 				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, PWMOut);
@@ -454,8 +454,8 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 #define  HTIM_ENCODER htim1
-#define  MAX_SUBPOSITION_OVERFLOW 1536
-#define  MAX_ENCODER_PERIOD 3072
+#define  MAX_SUBPOSITION_OVERFLOW 30720
+#define  MAX_ENCODER_PERIOD 61440 // 3072*20
 
 float EncoderVelocity_Update()
 {
@@ -495,6 +495,8 @@ float EncoderVelocity_Update()
 
 void PIDcontrol()   // sp(setPoint),nv(EncoderVel)
 {
+
+
 //	int sp = setPoint;
 //	nv = EncoderVel;
 
@@ -518,6 +520,7 @@ void PIDcontrol()   // sp(setPoint),nv(EncoderVel)
 	sumError = sumError + error;
 	uControl = (P*error)+(I*sumError)+(D*(error-preError));
 
+//	uc = uControl;
 
 	PWMOut += uControl;
 
@@ -529,7 +532,9 @@ void PIDcontrol()   // sp(setPoint),nv(EncoderVel)
 //	{
 //		PWMOut += uControl;
 //	}
-//	return (uControl) ;
+
+	preError = error;
+
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
