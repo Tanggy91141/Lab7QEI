@@ -62,6 +62,13 @@ float P=1,I=0,D=0;					  // PID
 
 float RPMnow = 0;					  // from encoder
 
+int check = 0;
+
+int sp = 0;
+float nv = 0;
+
+int count = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -75,7 +82,7 @@ static void MX_TIM3_Init(void);
 
 uint64_t micros();
 float EncoderVelocity_Update();
-float PIDcontrol();
+void PIDcontrol();
 
 /* USER CODE END PFP */
 
@@ -153,10 +160,23 @@ int main(void)
 			Timestamp_Encoder = micros();
 			EncoderVel = (EncoderVel * 99 + EncoderVelocity_Update()) / 100.0;
 
-			PWMOut += PIDcontrol();
+			PIDcontrol();
 
-			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, PWMOut); // PWM in ? f
-			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
+			if (setPoint > 0)
+//			if (count == 0)
+			{
+				check = 0;
+//				PWMOut += PIDcontrol(setPoint,EncoderVel);
+				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, PWMOut);
+				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
+			}
+			else
+			{
+				check = 1;
+//				PWMOut += PIDcontrol(setPoint*(-1),EncoderVel*(-1));
+				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, PWMOut);
+			}
 
 		}
 
@@ -473,15 +493,43 @@ float EncoderVelocity_Update()
 
 }
 
-float PIDcontrol()
+void PIDcontrol()   // sp(setPoint),nv(EncoderVel)
 {
+//	int sp = setPoint;
+//	nv = EncoderVel;
+
+	if (setPoint < 0)
+	{
+		sp = setPoint*(-1);
+		nv = EncoderVel*(-1);
+	}
+	else
+	{
+		sp = setPoint ;
+		nv = EncoderVel ;
+	}
+
+//	sp = setPoint ;
+//	nv = EncoderVel ;
+
 	RPMnow = EncoderVel*0.01953125; // 60/3072 = 0.01953125
 
-	error = setPoint - RPMnow;
+	error = sp - (nv*0.01953125);
 	sumError = sumError + error;
 	uControl = (P*error)+(I*sumError)+(D*(error-preError));
 
-	return (uControl) ;
+
+	PWMOut += uControl;
+
+//	if (setPoint < 0)
+//	{
+//		PWMOut -= uControl;
+//	}
+//	else
+//	{
+//		PWMOut += uControl;
+//	}
+//	return (uControl) ;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
