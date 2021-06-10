@@ -60,6 +60,8 @@ float uControl,sumError,preError = 0; // u,s,p
 float error = 0;
 float P=1,I=0,D=0;					  // PID
 
+float RPMnow = 0;					  // from encoder
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -151,9 +153,8 @@ int main(void)
 			Timestamp_Encoder = micros();
 			EncoderVel = (EncoderVel * 99 + EncoderVelocity_Update()) / 100.0;
 
-			error = PIDcontrol();
+			PWMOut += PIDcontrol();
 
-			PWMOut = 0;
 			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, PWMOut); // PWM in ? f
 			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
 
@@ -474,8 +475,13 @@ float EncoderVelocity_Update()
 
 float PIDcontrol()
 {
-	error = setPoint - EncoderVel;
-	return (error) ;
+	RPMnow = EncoderVel*0.01953125; // 60/3072 = 0.01953125
+
+	error = setPoint - RPMnow;
+	sumError = sumError + error;
+	uControl = (P*error)+(I*sumError)+(D*(error-preError));
+
+	return (uControl) ;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
