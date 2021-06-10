@@ -62,12 +62,12 @@ float P=1,I=0,D=0;					  // PID
 
 float RPMnow = 0;					  // from encoder
 
-int check = 0;
-
 int sp = 0;
 float nv = 0;
+float offset = 0.5;
 
 //int count = 0;
+//int check = 0;
 
 /* USER CODE END PV */
 
@@ -156,7 +156,7 @@ int main(void)
 
 
 		//Add LPF?
-		if (micros() - Timestamp_Encoder >= 100)
+		if (micros() - Timestamp_Encoder >= 1000) //mico
 		{
 			Timestamp_Encoder = micros();
 			EncoderVel = (EncoderVel * 99 + EncoderVelocity_Update()) / 100.0;
@@ -168,6 +168,11 @@ int main(void)
 //				check = 0;
 //				PWMOut += PIDcontrol(setPoint,EncoderVel);
 				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, PWMOut);
+				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
+			}
+			else if (setPoint == 0)
+			{
+				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
 				__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 0);
 			}
 			else
@@ -496,10 +501,6 @@ float EncoderVelocity_Update()
 void PIDcontrol()   // sp(setPoint),nv(EncoderVel)
 {
 
-
-//	int sp = setPoint;
-//	nv = EncoderVel;
-
 	if (setPoint < 0)
 	{
 		sp = setPoint*(-1);
@@ -518,7 +519,7 @@ void PIDcontrol()   // sp(setPoint),nv(EncoderVel)
 
 	error = sp - (nv*0.01953125);
 	sumError = sumError + error;
-	uControl = (P*error)+(I*sumError)+(D*(error-preError));
+	uControl = (P*error)+((I/1000)*sumError)+(D*1000*(error-preError))+offset;
 
 //	uc = uControl;
 
