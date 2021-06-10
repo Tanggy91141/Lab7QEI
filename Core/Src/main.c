@@ -53,6 +53,13 @@ uint64_t Timestamp_Encoder = 0;
 
 uint16_t PWMOut = 3000;
 
+int setPoint = 15; //in RPM
+
+//control
+float uControl,sumError,preError = 0; // u,s,p
+float error = 0;
+float P=1,I=0,D=0;					  // PID
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -63,8 +70,10 @@ static void MX_TIM1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
+
 uint64_t micros();
 float EncoderVelocity_Update();
+float PIDcontrol();
 
 /* USER CODE END PFP */
 
@@ -141,6 +150,8 @@ int main(void)
 		{
 			Timestamp_Encoder = micros();
 			EncoderVel = (EncoderVel * 99 + EncoderVelocity_Update()) / 100.0;
+
+			error = PIDcontrol();
 
 			PWMOut = 0;
 			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, PWMOut); // PWM in ? f
@@ -459,6 +470,12 @@ float EncoderVelocity_Update()
 	//EncoderTimeDiff is in uS
 	return (EncoderPositionDiff * 1000000) / (float) EncoderTimeDiff;
 
+}
+
+float PIDcontrol()
+{
+	error = setPoint - EncoderVel;
+	return (error) ;
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
